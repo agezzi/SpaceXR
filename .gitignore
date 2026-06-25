@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local debug artifacts
+ar-debug.json
+ar-puppeteer.png
+ar.png
+.vscode/
+
+# 3D assets too large for regular GitHub pushes
+public/chair.glb
+public/models/chair.glb
+public/models/Modern_arm_chair_02_4k.glb
