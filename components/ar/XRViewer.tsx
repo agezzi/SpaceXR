@@ -133,8 +133,11 @@ function XRSetup() {
 	// expose a starter function which requests an AR session and sets it on the renderer
 	const starter = async () => {
 		// @ts-ignore
-		if (!navigator.xr || !navigator.xr.requestSession) throw new Error("WebXR not available");
+		if (!navigator.xr || !navigator.xr.isSessionSupported) throw new Error("WebXR not available");
 		try {
+			// @ts-ignore
+			const supported = await navigator.xr.isSessionSupported("immersive-ar");
+			if (!supported) throw new Error("WebXR immersive-ar not supported");
 			// enable XR on the renderer
 			// @ts-ignore
 			gl.xr.enabled = true;
