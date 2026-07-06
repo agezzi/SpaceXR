@@ -116,20 +116,42 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
     };
   }, [pose]);
   // Use `useLoader` so parsing happens inside the render/Suspense flow
-  const modelPath = `/models/${selectedModel ?? 'chair.glb'}`;
+  const localModelPath = `/models/${selectedModel ?? 'chair.glb'}`;
+  // fallback URL used when the local model is unavailable on deployed hosts
+  const remoteFallbackModel = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb';
   // small sample GLB URL for headless GLTF pipeline validation
   const sampleGlb = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb';
   const localBoxPath = '/models/Box.glb';
   const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : null;
   const forceBox = !!(urlParams && urlParams.get('forceBox') === '1');
 
-  // (The GLTF will be loaded below after headless detection so we can swap paths)
-
-  
- 
-
   // detect headless / puppeteer environment to force a simple test mesh
   const isHeadless = (typeof navigator !== 'undefined' && (((navigator as any).userAgent || '').includes('Headless') || (navigator as any).webdriver === true)) || (typeof window !== 'undefined' && window.location && window.location.search && window.location.search.includes('headless=1'));
+
+  const [effectiveModelPath, setEffectiveModelPath] = useState<string>(isHeadless ? (forceBox ? localBoxPath : sampleGlb) : remoteFallbackModel);
+
+  useEffect(() => {
+    if (isHeadless) return;
+    let active = true;
+    const checkLocalModel = async () => {
+      try {
+        const res = await fetch(localModelPath, { method: 'HEAD' });
+        if (!active) return;
+        if (res.ok) {
+          setEffectiveModelPath(localModelPath);
+        } else {
+          setEffectiveModelPath(remoteFallbackModel);
+        }
+      } catch (e) {
+        if (!active) return;
+        setEffectiveModelPath(remoteFallbackModel);
+      }
+    };
+    checkLocalModel();
+    return () => {
+      active = false;
+    };
+  }, [localModelPath, isHeadless, remoteFallbackModel, forceBox, sampleGlb]);
 
   // create a simple checkerboard texture and test mesh for headless verification
   const testTexture = useMemo(() => {
@@ -185,9 +207,6 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
     } catch (e) {}
   }, [isHeadless]);
 
-  // determine effective model path and load GLTF (use small sample in headless)
-  // if `?forceBox=1` is present use a local `/models/Box.glb` to allow testing local tiny GLB
-  const effectiveModelPath = isHeadless ? (forceBox ? localBoxPath : sampleGlb) : modelPath;
   // useLoader typing is a bit strict for three/examples loaders; cast to any
   const loadedGltf: any = (useLoader as any)(GLTFLoader, effectiveModelPath);
 
@@ -329,14 +348,14 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
   // fallback: explicitly load the GLTF with GLTFLoader and set debug info (ensures parsing in headless)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!modelPath) return;
+    if (!effectiveModelPath) return;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     if ((window as any).__lastGltfInfo) return;
     try {
       const l = new GLTFLoader();
       l.load(
-        modelPath,
+        effectiveModelPath,
         (g) => {
           try {
             const sceneObj = g.scene || g.scenes?.[0] || null;
@@ -351,7 +370,7 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
             const scaleFactor = desired / maxDim;
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            window.__lastGltfInfo = { path: modelPath, size: size.toArray(), maxDim, scaleFactor, center: center.toArray() };
+            window.__lastGltfInfo = { path: effectiveModelPath, size: size.toArray(), maxDim, scaleFactor, center: center.toArray() };
             // eslint-disable-next-line no-console
             console.info('GLTF_INFO', (window as any).__lastGltfInfo);
           } catch (e) {}
@@ -362,7 +381,7 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
         }
       );
     } catch (e) {}
-  }, [modelPath]);
+  }, [effectiveModelPath]);
 
   // helpers: create a visible grid and axes so headless screenshots show scene origin
   const gridHelper = useMemo(() => new THREE.GridHelper(4, 8), []);

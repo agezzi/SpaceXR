@@ -1,3 +1,5 @@
+"use client";
+
 import XRViewer from "@/components/ar/XRViewer";
 
 export default function ARPage() {
