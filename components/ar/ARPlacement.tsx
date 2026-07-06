@@ -118,7 +118,7 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
   // Use `useLoader` so parsing happens inside the render/Suspense flow
   const localModelPath = `/models/${selectedModel ?? 'chair.glb'}`;
   // fallback URL used when the local model is unavailable on deployed hosts
-  const remoteFallbackModel = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Armchair/glTF-Binary/Armchair.glb';
+  const remoteFallbackModel = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb';
   // small sample GLB URL for headless GLTF pipeline validation
   const sampleGlb = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb';
   const localBoxPath = '/models/Box.glb';
