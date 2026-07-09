@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useThree, useLoader } from "@react-three/fiber";
+import { useXR } from "@react-three/xr";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import * as THREE from "three";
 
@@ -15,6 +16,8 @@ type Props = {
 
 export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, previewEnabled = true, onPlacedCountChange }: Props) {
   const { gl, scene, camera } = useThree();
+  const xrState = useXR();
+  const session = xrState.session;
   const reticleRef = useRef<THREE.Mesh | null>(null);
   const [visible, setVisible] = useState(false);
   const [pose, setPose] = useState<THREE.Matrix4 | null>(null);
@@ -29,7 +32,6 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
     let localSpace: any = null;
     let rafId: any = null;
 
-    const session = (gl as any).xr?.getSession?.();
     if (!session) return;
 
     const onXRFrame = (time: any, xrFrame: any) => {
@@ -46,15 +48,15 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
       } else {
         setVisible(false);
       }
-      rafId = session.requestAnimationFrame(onXRFrame);
+      rafId = (session as any).requestAnimationFrame(onXRFrame);
     };
 
     (async () => {
       try {
-        viewerSpace = await session.requestReferenceSpace("viewer");
-        localSpace = await session.requestReferenceSpace("local-floor").catch(() => null);
-        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
-        rafId = session.requestAnimationFrame(onXRFrame);
+        viewerSpace = await (session as any).requestReferenceSpace("viewer");
+        localSpace = await (session as any).requestReferenceSpace("local-floor").catch(() => null);
+        hitTestSource = await (session as any).requestHitTestSource({ space: viewerSpace });
+        rafId = (session as any).requestAnimationFrame(onXRFrame);
       } catch (e) {
         console.warn("Hit test not available", e);
       }
@@ -66,10 +68,10 @@ export default function ARPlacement({ selectedModel, scale = 1, rotationY = 0, p
         if (rafId) session.cancelAnimationFrame(rafId);
       } catch (e) {}
     };
-  }, [gl]);
+  }, [session]);
 
   // detect if an XR session is active
-  const xrSession = (gl as any).xr?.getSession?.();
+  const xrSession = session;
 
   useEffect(() => {
     if (!reticleRef.current) return;
