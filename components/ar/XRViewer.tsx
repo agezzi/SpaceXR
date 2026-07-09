@@ -15,7 +15,8 @@ import { Suspense } from "react";
 export default function XRViewer() {
 	const [stage, setStage] = useState<"check" | "loading" | "ready">("check");
 	const [selectedModel, setSelectedModel] = useState<string>("Modern_arm_chair_02_4k.glb");
-	const xrStore = useMemo(() => createXRStore({ domOverlay: false, hitTest: true }), []);
+	const domOverlay = typeof window !== 'undefined' ? document.createElement('div') : undefined;
+	const xrStore = useMemo(() => createXRStore({ domOverlay, hitTest: true }), [domOverlay]);
 	const [placementScale, setPlacementScale] = useState<number>(1);
 	const [placementRotation, setPlacementRotation] = useState<number>(0);
 	const [previewEnabled, setPreviewEnabled] = useState<boolean>(true);
