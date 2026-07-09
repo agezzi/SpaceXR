@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { useState, useEffect, useMemo } from "react";
+import { Canvas } from "@react-three/fiber";
+import { createXRStore, XR } from "@react-three/xr";
 import { OrbitControls } from "@react-three/drei";
 import Scene from "@/components/three/Scene";
 import DeviceCheck from "./DeviceCheck";
 import LoadingScreen from "./LoadingScreen";
-import EnterARButton from "./EnterARButton";
-import { useRef } from "react";
 import ARPlacement from "./ARPlacement";
 import ModelSelector from "./ModelSelector";
 import ProductOverlay from "./ProductOverlay";
@@ -16,7 +15,7 @@ import { Suspense } from "react";
 export default function XRViewer() {
 	const [stage, setStage] = useState<"check" | "loading" | "ready">("check");
 	const [selectedModel, setSelectedModel] = useState<string>("Modern_arm_chair_02_4k.glb");
-	const sessionStarterRef = useRef<(() => Promise<void>) | null>(null);
+	const xrStore = useMemo(() => createXRStore({ domOverlay: false, hitTest: true }), []);
 	const [placementScale, setPlacementScale] = useState<number>(1);
 	const [placementRotation, setPlacementRotation] = useState<number>(0);
 	const [previewEnabled, setPreviewEnabled] = useState<boolean>(true);
@@ -79,13 +78,29 @@ export default function XRViewer() {
 				{stage === "ready" && (
 				<>
 						<Canvas camera={{ position: [0, 1.5, 4], fov: 45 }}>
-							<Suspense fallback={null}>
-								<Scene />
-								<ARPlacement selectedModel={selectedModel} scale={placementScale} rotationY={placementRotation} previewEnabled={previewEnabled} onPlacedCountChange={(c) => setPlacedCount(c)} />
-							</Suspense>
-							<OrbitControls enablePan={false} minDistance={2} maxDistance={8} />
-							<XRSetup />
+							<XR store={xrStore}>
+								<Suspense fallback={null}>
+									<Scene />
+									<ARPlacement selectedModel={selectedModel} scale={placementScale} rotationY={placementRotation} previewEnabled={previewEnabled} onPlacedCountChange={(c) => setPlacedCount(c)} />
+								</Suspense>
+								<OrbitControls enablePan={false} minDistance={2} maxDistance={8} />
+							</XR>
 						</Canvas>
+						<div className="absolute bottom-6 right-6 z-40">
+							<button
+								className="rounded-full bg-green-600 px-4 py-2 text-white font-semibold hover:bg-green-700 transition"
+								onClick={async () => {
+								try {
+									await xrStore.enterAR();
+								} catch (error) {
+									console.error('AR session failed to start:', error);
+									alert('AR session failed to start. Please use a compatible browser and allow camera permissions.');
+								}
+							}}
+							>
+								Enter AR
+							</button>
+						</div>
 						{/* Model selector overlay (expects models in /public/models/*.glb) */}
 					<ModelSelector models={modelList} selected={selectedModel} onSelect={(m) => setSelectedModel(m)} />
 					<ProductOverlay
@@ -104,7 +119,6 @@ export default function XRViewer() {
 							setPlacedCount(0);
 						}}
 					/>
-					<EnterARButton selectedModel={selectedModel} />
 					{/* DOM overlay: Place button calls the global placement function exposed by ARPlacement */}
 					<div style={{ position: "absolute", bottom: 24, right: 24 }}>
 						<button
@@ -127,40 +141,6 @@ export default function XRViewer() {
 	);
 }
 
-function XRSetup() {
-	const { gl } = useThree();
-
-	// expose a starter function which requests an AR session and sets it on the renderer
-	const starter = async () => {
-		// @ts-ignore
-		if (!navigator.xr || !navigator.xr.isSessionSupported) throw new Error("WebXR not available");
-		try {
-			// @ts-ignore
-			const supported = await navigator.xr.isSessionSupported("immersive-ar");
-			if (!supported) throw new Error("WebXR immersive-ar not supported");
-			// enable XR on the renderer
-			// @ts-ignore
-			gl.xr.enabled = true;
-			// request session
-			// @ts-ignore
-			const session = await navigator.xr.requestSession("immersive-ar", {
-				requiredFeatures: ["local-floor", "hit-test"],
-			});
-			// @ts-ignore
-			await gl.xr.setSession(session);
-		} catch (e) {
-			console.error("Failed to start XR session:", e);
-			throw e;
-		}
-	};
-
-	// provide starter globally so overlay buttons can call it
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-	// @ts-ignore
-	if (typeof window !== "undefined") window.__startXR = starter;
-
-	return null;
-}
 
 function DebugInfo() {
 	const [info, setInfo] = useState<any>(null);

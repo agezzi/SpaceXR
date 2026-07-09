@@ -9,11 +9,16 @@ export default function DeviceCheck({ onContinue }: { onContinue: () => void }) 
     let mounted = true;
     async function check() {
       try {
-        // @ts-ignore
-        if (navigator?.xr?.isSessionSupported) {
-          // @ts-ignore
-          const ok = await navigator.xr.isSessionSupported("immersive-ar");
-          if (mounted) setSupported(Boolean(ok));
+        const xr = navigator?.xr;
+        if (xr) {
+          if (typeof xr.isSessionSupported === "function") {
+            const ok = await xr.isSessionSupported("immersive-ar");
+            if (mounted) setSupported(Boolean(ok));
+          } else if (typeof xr.requestSession === "function") {
+            if (mounted) setSupported(true);
+          } else {
+            if (mounted) setSupported(false);
+          }
         } else {
           if (mounted) setSupported(false);
         }
